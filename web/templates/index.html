@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PyTorch ile Hisse Senedi Fiyat Tahmini | LSTM ve GRU Karşılaştırmalı Analizi</title>
+  <meta name="description" content="Amazon (AMZN) 12 yıllık hisse verisi üzerinde PyTorch LSTM ve GRU tekrarlayan sinir ağlarının karşılaştırmalı zaman serisi regresyon paneli.">
+  
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  
+  <!-- Sade & Modern CSS -->
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <!-- Üst Gezinme Çubuğu -->
+  <header class="navbar" id="main-navbar">
+    <div class="container nav-container">
+      <a href="/" class="logo-wrapper" id="nav-logo-link">
+        <div class="logo-icon">▲</div>
+        <div class="logo-title">HisseTahmin <span>AI</span></div>
+      </a>
+      <ul class="nav-links">
+        <li><a href="#section-chart" class="nav-link" id="nav-link-chart">Fiyat Grafiği</a></li>
+        <li><a href="#section-playground" class="nav-link" id="nav-link-playground">Canlı Tahmin</a></li>
+        <li><a href="#section-metrics" class="nav-link" id="nav-link-metrics">Model Kıyaslaması</a></li>
+        <li><a href="#section-architecture" class="nav-link" id="nav-link-architecture">Model Mimarileri</a></li>
+        <li><a href="#section-critique" class="nav-link" id="nav-link-critique">Yapay Zeka Eleştirisi</a></li>
+      </ul>
+      <div class="badge-device" id="badge-device-indicator">CUDA HIZLANDIRICI AKTİF</div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Giriş Bölümü -->
+    <section class="hero" id="section-hero">
+      <div class="container">
+        <div class="hero-tag">
+          <span>PyTorch Derin Öğrenme Analizi</span>
+          <span>•</span>
+          <span>Amazon (AMZN) 12 Yıllık Veri Seti</span>
+        </div>
+        <h1>Hisse Senedi Fiyat Tahmini: <span class="highlight-text">LSTM ve GRU</span></h1>
+        <p class="hero-subtitle">
+          Finansal zaman serisi tahmininde Tekrarlayan Sinir Ağlarının (RNN) ampirik karşılaştırması. 
+          1 Aylık Makine Öğrenimi Planı doğrultusunda hazırlanmış ve GPU donanımında eğitilmiştir.
+        </p>
+      </div>
+    </section>
+
+    <!-- Özet İstatistik Kartları -->
+    <section class="section-kpis" id="section-kpis">
+      <div class="container">
+        <div class="kpi-grid">
+          
+          <div class="kpi-card" id="kpi-card-price">
+            <div class="kpi-header">
+              <span class="kpi-label">Son Kapanış Fiyatı</span>
+              <span class="kpi-badge badge-green" id="kpi-growth">+%2.358</span>
+            </div>
+            <div class="kpi-value" id="kpi-last-price">$1.169,47</div>
+            <div class="kpi-desc" id="overview-dates">2006-01-03 ile 2017-12-29 arası (3.019 işlem günü)</div>
+          </div>
+
+          <div class="kpi-card" id="kpi-card-winner">
+            <div class="kpi-header">
+              <span class="kpi-label">En Başarılı Model</span>
+              <span class="kpi-badge badge-green">%96,4 R² SKORU</span>
+            </div>
+            <div class="kpi-value" style="color: #60a5fa;">GRU Ağı</div>
+            <div class="kpi-desc">Test RMSE: <strong>$33,88</strong> (LSTM: $283,82)</div>
+          </div>
+
+          <div class="kpi-card" id="kpi-card-params">
+            <div class="kpi-header">
+              <span class="kpi-label">Parametre Verimliliği</span>
+              <span class="kpi-badge badge-blue" id="kpi-param-reduction">-%24,9</span>
+            </div>
+            <div class="kpi-value" style="color: #93c5fd;">9.729 vs 12.961</div>
+            <div class="kpi-desc">GRU, 2 kapılı yapısıyla bellek tasarrufu sağlar</div>
+          </div>
+
+          <div class="kpi-card" id="kpi-card-hardware">
+            <div class="kpi-header">
+              <span class="kpi-label">Hesaplama Birimi</span>
+              <span class="kpi-badge badge-green">0,51 sn EĞİTİM</span>
+            </div>
+            <div class="kpi-value" id="kpi-device" style="font-size: 20px;">CUDA GPU AKTİF</div>
+            <div class="kpi-desc">NVIDIA GeForce RTX 3050 (CUDA 12.4)</div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- Ana Grafik Bölümü -->
+    <section class="section" id="section-chart">
+      <div class="container">
+        <div class="glass-box">
+          <div class="section-header">
+            <div class="section-title">
+              Amazon (AMZN) Geçmiş Fiyat Trendi ve Model Tahminleri
+            </div>
+            <div class="chart-controls">
+              <button class="btn-pill time-btn" data-range="1Y" id="btn-range-1y">1 Yıl</button>
+              <button class="btn-pill time-btn" data-range="3Y" id="btn-range-3y">3 Yıl</button>
+              <button class="btn-pill time-btn" data-range="5Y" id="btn-range-5y">5 Yıl</button>
+              <button class="btn-pill time-btn active" data-range="ALL" id="btn-range-all">Tüm Geçmiş</button>
+            </div>
+          </div>
+
+          <!-- Grafik Canvas -->
+          <div class="chart-wrapper">
+            <canvas id="mainStockChart"></canvas>
+          </div>
+
+          <!-- Özel Lejant -->
+          <div class="chart-legend-custom" id="chart-legend-container"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Canlı Çıkarım & Senaryo Simülatörü -->
+    <section class="section" id="section-playground">
+      <div class="container">
+        <div class="glass-box">
+          <div class="section-header">
+            <div class="section-title">
+              Canlı Tahmin & Piyasa Şoku Simülatörü
+            </div>
+            <span class="kpi-badge badge-blue">CANLI PYTORCH ÇIKARIMI</span>
+          </div>
+
+          <p style="color: var(--text-secondary); margin-bottom: 18px; font-size: 14px;">
+            Eğitilmiş PyTorch modellerini gerçek zamanlı test edin. Son 20 günlük fiyat penceresine yapay piyasa şoku uygulayarak modellerin tepkisini inceleyebilirsiniz:
+          </p>
+
+          <div class="playground-grid">
+            <!-- Kontrol Kartı -->
+            <div class="play-card" id="play-card-controls">
+              <h3>Piyasa Dalgalanma Simülasyonu</h3>
+              
+              <div class="form-group">
+                <label for="price-shock-slider">Son 20 Güne Uygulanacak Fiyat Şoku:</label>
+                <div class="slider-wrapper">
+                  <input type="range" id="price-shock-slider" class="slider-input" min="-15" max="15" value="0" step="1">
+                  <span class="slider-val" id="slider-val-display">%0</span>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>En Son Gerçek Kapanış Fiyatı:</label>
+                <div style="font-family: var(--font-mono); font-size: 24px; font-weight: 700; color: var(--text-highlight);" id="pred-current-price">
+                  $1.169,47
+                </div>
+              </div>
+
+              <button class="btn-primary" id="btn-run-inference">
+                <span>Model Tahminini Çalıştır</span>
+              </button>
+
+              <div style="margin-top: 14px; font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between;">
+                <span>Hesaplama Gecikmesi:</span>
+                <span id="inference-latency" style="font-family: var(--font-mono); color: #93c5fd;">-- ms</span>
+              </div>
+            </div>
+
+            <!-- Tahmin Sonuçları -->
+            <div class="play-card" id="play-card-outputs">
+              <h3>Gelecek Gün Fiyat Tahminleri</h3>
+              
+              <div class="prediction-results">
+                <!-- GRU Sonucu -->
+                <div class="pred-box winner" id="box-gru-result">
+                  <div class="pred-model-name">GRU Modeli</div>
+                  <div class="pred-price" id="pred-gru-price">$1.165,32</div>
+                  <div class="pred-change change-down" id="pred-gru-change">-4,15 USD (-%0,35)</div>
+                  <div style="margin-top: 6px; font-size: 11px; color: var(--text-muted);">Test Hatası (RMSE): $33,88</div>
+                </div>
+
+                <!-- LSTM Sonucu -->
+                <div class="pred-box" id="box-lstm-result">
+                  <div class="pred-model-name">LSTM Modeli</div>
+                  <div class="pred-price" id="pred-lstm-price">$942,10</div>
+                  <div class="pred-change change-down" id="pred-lstm-change">-227,37 USD (-%19,4)</div>
+                  <div style="margin-top: 6px; font-size: 11px; color: var(--text-muted);">Aşırı öğrenme sapması mevcut</div>
+                </div>
+              </div>
+
+              <div style="margin-top: 18px; padding: 12px; background: rgba(37, 99, 235, 0.05); border: 1px solid var(--border-color); border-radius: 8px;">
+                <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
+                  <strong>Nasıl Çalışır?</strong> Modeller son $N=20$ günlük normalize edilmiş fiyat dizilimini girdi tensorü <code>(1, 20, 1)</code> olarak alır ve 21. gün için skalar tahmin üretir. Çıktı ters ölçekleme ile USD değerine dönüştürülür.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Model Kıyaslama Tablosu -->
+    <section class="section" id="section-metrics">
+      <div class="container">
+        <div class="glass-box">
+          <div class="section-header">
+            <div class="section-title">
+              Model Değerlendirme ve Performans Kıyaslaması
+            </div>
+            <span class="kpi-badge badge-green">100 EPOCH EĞİTİM SONUÇLARI</span>
+          </div>
+
+          <div class="table-responsive">
+            <table class="custom-table" id="table-model-benchmark">
+              <thead>
+                <tr>
+                  <th>Model Mimarisi</th>
+                  <th>Parametre Sayısı</th>
+                  <th>Eğitim Süresi (GPU)</th>
+                  <th>Eğitim RMSE</th>
+                  <th>Test RMSE</th>
+                  <th>Test MAE</th>
+                  <th>Test MAPE</th>
+                  <th>Test R² Skoru</th>
+                </tr>
+              </thead>
+              <tbody id="metrics-table-body">
+                <!-- JS ile dinamik doldurulur -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Model Mimarileri İnceleme -->
+    <section class="section" id="section-architecture">
+      <div class="container">
+        <div class="glass-box">
+          <div class="section-header">
+            <div class="section-title">
+              PyTorch Sinir Ağı Mimarileri ve Matematiksel Temeller
+            </div>
+          </div>
+
+          <!-- Sekmeler -->
+          <div class="arch-tabs">
+            <button class="tab-btn active" data-target="tab-gru" id="tab-btn-gru">GRU Mimarisi (En Başarılı)</button>
+            <button class="tab-btn" data-target="tab-lstm" id="tab-btn-lstm">LSTM Mimarisi</button>
+          </div>
+
+          <!-- GRU Sekmesi -->
+          <div class="tab-content active" id="tab-gru">
+            <div class="arch-layout">
+              <div class="math-card">
+                <h4 style="font-size: 15px; margin-bottom: 14px; color: var(--text-highlight);">Gated Recurrent Unit (Cho vd., 2014)</h4>
+                
+                <div class="gate-row">
+                  <div class="gate-title">1. Sıfırlama Kapısı (Reset Gate: $r_t$)</div>
+                  <div class="gate-formula">r_t = σ(W_r · x_t + U_r · h_{t-1} + b_r)</div>
+                  <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 3px;">Geçmiş bilginin ne kadarının unutulacağını belirler.</p>
+                </div>
+
+                <div class="gate-row">
+                  <div class="gate-title">2. Güncelleme Kapısı (Update Gate: $z_t$)</div>
+                  <div class="gate-formula">z_t = σ(W_z · x_t + U_z · h_{t-1} + b_z)</div>
+                  <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 3px;">Unutma ve girdi kapılarının işlevini tek kapıda birleştirir.</p>
+                </div>
+
+                <div class="gate-row">
+                  <div class="gate-title">3. Aday Gizli Durum ($\\tilde{h}_t$)</div>
+                  <div class="gate-formula">h̃_t = tanh(W · x_t + U · (r_t ⊙ h_{t-1}) + b)</div>
+                </div>
+
+                <div class="gate-row">
+                  <div class="gate-title">4. Gizli Durum Güncellemesi ($h_t$)</div>
+                  <div class="gate-formula">h_t = (1 - z_t) ⊙ h_{t-1} + z_t ⊙ h̃_t</div>
+                </div>
+              </div>
+
+              <div>
+                <pre class="code-block"><code># PyTorch GRU Model Tanımı
+class GRUModel(nn.Module):
+    def __init__(self, input_dim=1, hidden_dim=32, num_layers=2, output_dim=1):
+        super(GRUModel, self).__init__()
+        self.gru = nn.GRU(
+            input_size=input_dim,
+            hidden_size=hidden_dim,
+            num_layers=num_layers,
+            batch_first=True
+        )
+        self.fc = nn.Linear(hidden_dim, output_dim)
+
+    def forward(self, x):
+        h0 = torch.zeros(2, x.size(0), 32, device=x.device)
+        out, _ = self.gru(x, h0)
+        return self.fc(out[:, -1, :])</code></pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- LSTM Sekmesi -->
+          <div class="tab-content" id="tab-lstm">
+            <div class="arch-layout">
+              <div class="math-card">
+                <h4 style="font-size: 15px; margin-bottom: 14px; color: var(--text-highlight);">Long Short-Term Memory (Hochreiter & Schmidhuber, 1997)</h4>
+                
+                <div class="gate-row">
+                  <div class="gate-title">1. Unutma Kapısı (Forget Gate: $f_t$)</div>
+                  <div class="gate-formula">f_t = σ(W_f · x_t + U_f · h_{t-1} + b_f)</div>
+                </div>
+
+                <div class="gate-row">
+                  <div class="gate-title">2. Girdi Kapısı ($i_t$) ve Aday Durum ($C̃_t$)</div>
+                  <div class="gate-formula">i_t = σ(W_i · x_t + U_i · h_{t-1} + b_i)</div>
+                  <div class="gate-formula">C̃_t = tanh(W_c · x_t + U_c · h_{t-1} + b_c)</div>
+                </div>
+
+                <div class="gate-row">
+                  <div class="gate-title">3. Hücre Durumu Güncellemesi ($C_t$)</div>
+                  <div class="gate-formula">C_t = f_t ⊙ C_{t-1} + i_t ⊙ C̃_t</div>
+                </div>
+
+                <div class="gate-row">
+                  <div class="gate-title">4. Çıktı Kapısı ($o_t$) ve Gizli Durum ($h_t$)</div>
+                  <div class="gate-formula">o_t = σ(W_o · x_t + U_o · h_{t-1} + b_o)</div>
+                  <div class="gate-formula">h_t = o_t ⊙ tanh(C_t)</div>
+                </div>
+              </div>
+
+              <div>
+                <pre class="code-block"><code># PyTorch LSTM Model Tanımı
+class LSTMModel(nn.Module):
+    def __init__(self, input_dim=1, hidden_dim=32, num_layers=2, output_dim=1):
+        super(LSTMModel, self).__init__()
+        self.lstm = nn.LSTM(
+            input_size=input_dim,
+            hidden_size=hidden_dim,
+            num_layers=num_layers,
+            batch_first=True
+        )
+        self.fc = nn.Linear(hidden_dim, output_dim)
+
+    def forward(self, x):
+        h0 = torch.zeros(2, x.size(0), 32, device=x.device)
+        c0 = torch.zeros(2, x.size(0), 32, device=x.device)
+        out, _ = self.lstm(x, (h0, c0))
+        return self.fc(out[:, -1, :])</code></pre>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- AI Snake Oil Eleştirel Bölüm -->
+    <section class="section" id="section-critique">
+      <div class="container">
+        <div class="critique-card">
+          <div class="critique-header">
+            <div class="critique-icon">ℹ️</div>
+            <div>
+              <h3 style="font-size: 18px; color: var(--text-highlight);">Eleştirel Bakış: Finansal Piyasalarda Yapay Zeka Yanılsamaları</h3>
+              <p style="font-size: 12.5px; color: #f59e0b;">Arvind Narayanan & Sayash Kapoor (Princeton Üniversitesi, "AI Snake Oil") yaklaşımı</p>
+            </div>
+          </div>
+
+          <p style="color: var(--text-secondary); font-size: 13.5px; line-height: 1.6;">
+            Finansal makine öğrenimi modellemelerinde ve bu 1 aylık projede vurgulandığı gibi, geçmiş verilerdeki yüksek matematiksel başarı her zaman piyasada getiri garantisi anlamına gelmez:
+          </p>
+
+          <div class="critique-grid">
+            <div class="critique-item">
+              <h4>1 Günlük Gecikme Yanılsaması</h4>
+              <p>
+                Zaman serisi modelleri genellikle $R^2 > 0.95$ gibi yüksek metrikleri kolayca yakalar çünkü aslında $\hat{y}_{t+1} \approx y_t$ kuralını öğrenirler. Tahmin çizgisi gerçek fiyatı 1 gün geriden takip ettiği için yön dönüşlerini önceden kestirmede yetersiz kalabilir.
+              </p>
+            </div>
+
+            <div class="critique-item">
+              <h4>Etkin Piyasa Hipotezi (EMH)</h4>
+              <p>
+                Hisse senedi fiyatları kamuya açık tüm bilgileri anlık olarak yansıtır. Gelecekteki ani sıçramalar beklenmedik haberler, bilanço açıklamaları ve makroekonomik olaylarla şekillenir; bu nedensellik tek başına geçmiş fiyat serisinde bulunmaz.
+              </p>
+            </div>
+
+            <div class="critique-item">
+              <h4>Durağanlık ve Getiri Modellemesi</h4>
+              <p>
+                Gerçek niceliksel (kantitatif) fonlar nominal fiyat seviyesi yerine <strong>logaritmik getirileri</strong> veya <strong>yön olasılıklarını (Yukarı / Aşağı)</strong> tahmin eder; haber analizi (NLP) ve işlem hacmi gibi çok boyutlu sinyalleri birleştirir.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Altbilgi -->
+  <footer id="main-footer">
+    <div class="container">
+      <p>
+        PyTorch ile Hisse Senedi Fiyat Tahmini (LSTM ve GRU) • 1 Aylık Makine Öğrenimi Çalışma Planı Kapsamında Geliştirilmiştir
+      </p>
+      <p style="margin-top: 6px; font-size: 12px; color: var(--text-muted);">
+        Benchmark Referansı: Rodolfo Saldanha Zaman Serisi Araştırması • NVIDIA CUDA GPU ile Eğitilmiştir
+      </p>
+    </div>
+  </footer>
+
+  <!-- Ana JavaScript Dosyası -->
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
