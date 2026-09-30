@@ -134,7 +134,7 @@ Generated plots are saved automatically in the `figures/` directory:
 
 ## 🔍 Critical Perspective: AI Snake Oil in Finance
 
-As encouraged in Phase 3 (Day 28–30) of the curriculum, we reflect on the limitations of AI in financial forecasting, drawing upon insights from **"AI Snake Oil"** (Prof. Arvind Narayanan & Sayash Kapoor, Princeton University):
+We reflect on the limitations of AI in financial forecasting, drawing upon insights from **"AI Snake Oil"** (Prof. Arvind Narayanan & Sayash Kapoor, Princeton University):
 
 1. **The "Lagging Shadow" Artifact:**
    High $R^2$ scores ($> 0.95$) in daily time-series regression are often illusory. In practice, the model learns an autoregressive heuristic resembling $\hat{y}_{t+1} \approx y_t$. When inspected closely, the predicted line often shadows the real price with a 1-day delay.
@@ -171,7 +171,6 @@ StockPricePrediction/
 │   ├── train.py                            # Training pipeline with timing & loss tracking
 │   ├── evaluate.py                         # Evaluation metrics (RMSE, MAE, R2) & plotting
 │   └── predict.py                          # Next-day price forecasting inference
-├── One-Month_ML_Plan.md                    # Learning curriculum & project roadmap
 ├── requirements.txt                        # Pinned dependencies
 ├── .gitignore                              # Git exclusion rules
 └── README.md                               # Project documentation
